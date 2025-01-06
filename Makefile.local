@@ -1,0 +1,32 @@
+ifeq ($(strip $(DEVKITPPC)),)
+$(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC")
+endif
+
+include $(DEVKITPPC)/wii_rules
+
+CFLAGS=-g -O2 -Wall $(MACHDEP) $(INCLUDE) -I$(DEVKITPRO)/libogc/include -I$(DEVKITPRO)/portlibs/wii/include -I$(DEVKITPRO)/portlibs/wii/include/SDL2
+LIBS=-L$(DEVKITPRO)/portlibs/wii/lib -lSDL2main -lSDL2 -mrvl -DGEKKO -mcpu=750 -meabi -mhard-float -L$(DEVKITPRO)/libogc/lib/wii -L$(DEVKITPRO)/portlibs/ppc/lib -laesnd -lopengx -lfat -lwiiuse -lbte -lwiikeyboard -logc -lm -lwiisocket
+
+COMPILE_ARCH=x86_64
+
+PLATFORM=wii
+ARCH=ppc
+PKG_CONFIG=$(DEVKITPRO)/portlibs/wii/bin/powerpc-eabi-pkg-config
+V=1
+BINEXT=.elf
+
+
+BUILD_RENDERER_OPENGL1=1
+BUILD_RENDERER_OPENGL2=0
+BUILD_GAME_SO=0
+BUILD_SERVER=0
+
+USE_INTERNAL_LIBS=0
+USE_OPENAL=0
+USE_CURL=0
+USE_MUMBLE=0
+USE_VOIP=0
+
+USE_OPENAL_DLOPEN=0
+USE_CURL_DLOPEN=0
+USE_RENDERER_DLOPEN=0
