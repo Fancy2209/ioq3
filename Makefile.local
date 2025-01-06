@@ -7,8 +7,6 @@ include $(DEVKITPPC)/wii_rules
 CFLAGS=-g -O2 -Wall $(MACHDEP) $(INCLUDE) -I$(DEVKITPRO)/libogc/include -I$(DEVKITPRO)/portlibs/wii/include -I$(DEVKITPRO)/portlibs/wii/include/SDL2
 LIBS=-L$(DEVKITPRO)/portlibs/wii/lib -lSDL2main -lSDL2 -mrvl -DGEKKO -mcpu=750 -meabi -mhard-float -L$(DEVKITPRO)/libogc/lib/wii -L$(DEVKITPRO)/portlibs/ppc/lib -laesnd -lopengx -lfat -lwiiuse -lbte -lwiikeyboard -logc -lm -lwiisocket
 
-COMPILE_ARCH=x86_64
-
 PLATFORM=wii
 ARCH=ppc
 PKG_CONFIG=$(DEVKITPRO)/portlibs/wii/bin/powerpc-eabi-pkg-config
