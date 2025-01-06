@@ -30,7 +30,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <unistd.h>
 #include <signal.h>
+#ifndef __wii__
 #include <termios.h>
+#endif
 #include <fcntl.h>
 #include <sys/time.h>
 
@@ -55,7 +57,9 @@ static int ttycon_show_overdue = 0;
 static int TTY_erase;
 static int TTY_eof;
 
+#ifndef __wii__
 static struct termios TTY_tc;
+#endif
 
 static field_t TTY_con;
 
@@ -173,7 +177,9 @@ void CON_Shutdown( void )
 	if (ttycon_on)
 	{
 		CON_Hide();
+		#ifndef __wii__
 		tcsetattr (STDIN_FILENO, TCSADRAIN, &TTY_tc);
+		#endif
 	}
 
 	// Restore blocking to stdin reads
@@ -273,9 +279,15 @@ CON_Init
 Initialize the console input (tty mode if possible)
 ==================
 */
+#ifndef __wii__
 void CON_Init( void )
+#else
+void CON_Initialize( void )
+#endif
 {
+	#ifndef __wii__
 	struct termios tc;
+	#endif
 
 	// If the process is backgrounded (running non interactively)
 	// then SIGTTIN or SIGTOU is emitted, if not caught, turns into a SIGSTP
@@ -297,10 +309,12 @@ void CON_Init( void )
 	}
 
 	Field_Clear(&TTY_con);
+	#ifndef __wii__
 	tcgetattr (STDIN_FILENO, &TTY_tc);
 	TTY_erase = TTY_tc.c_cc[VERASE];
 	TTY_eof = TTY_tc.c_cc[VEOF];
 	tc = TTY_tc;
+	#endif
 
 	/*
 	ECHO: don't echo input characters
@@ -310,6 +324,7 @@ void CON_Init( void )
 	ISIG: when any of the characters  INTR,  QUIT,  SUSP,  or
 	DSUSP are received, generate the corresponding signal
 	*/
+	#ifndef __wii__
 	tc.c_lflag &= ~(ECHO | ICANON);
 
 	/*
@@ -320,6 +335,7 @@ void CON_Init( void )
 	tc.c_cc[VMIN] = 1;
 	tc.c_cc[VTIME] = 0;
 	tcsetattr (STDIN_FILENO, TCSADRAIN, &tc);
+	#endif
 	ttycon_on = qtrue;
 	ttycon_hide = 1; // Mark as hidden, so prompt is shown in CON_Show
 	CON_Show();
@@ -427,7 +443,9 @@ char *CON_Input( void )
 										TTY_con = *history;
 										CON_Show();
 									}
+									#ifndef __wii__
 									tcflush(STDIN_FILENO, TCIFLUSH);
+									#endif
 									return NULL;
 									break;
 								case 'B':
@@ -441,7 +459,9 @@ char *CON_Input( void )
 										Field_Clear(&TTY_con);
 									}
 									CON_Show();
+									#ifndef __wii__
 									tcflush(STDIN_FILENO, TCIFLUSH);
+									#endif
 									return NULL;
 									break;
 								case 'C':
@@ -453,7 +473,9 @@ char *CON_Input( void )
 					}
 				}
 				Com_DPrintf("droping ISCTL sequence: %d, TTY_erase: %d\n", key, TTY_erase);
+				#ifndef __wii__
 				tcflush(STDIN_FILENO, TCIFLUSH);
+				#endif
 				return NULL;
 			}
 			if (TTY_con.cursor >= sizeof(text) - 1)

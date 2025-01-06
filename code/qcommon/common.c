@@ -25,7 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "qcommon.h"
 #include <setjmp.h>
 #ifndef _WIN32
+#ifndef __wii__
 #include <netinet/in.h>
+#endif
 #include <sys/stat.h> // umask
 #else
 #include <winsock.h>
@@ -2526,7 +2528,7 @@ static void Com_WriteCDKey( const char *filename, const char *ikey ) {
 	fileHandle_t	f;
 	char			fbuffer[MAX_OSPATH];
 	char			key[17];
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__wii__)
 	mode_t			savedumask;
 #endif
 
@@ -2540,7 +2542,7 @@ static void Com_WriteCDKey( const char *filename, const char *ikey ) {
 		return;
 	}
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__wii__)
 	savedumask = umask(0077);
 #endif
 	f = FS_SV_FOpenFileWrite( fbuffer );
@@ -2557,7 +2559,7 @@ static void Com_WriteCDKey( const char *filename, const char *ikey ) {
 
 	FS_FCloseFile( f );
 out:
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__wii__)
 	umask(savedumask);
 #else
 	;

@@ -68,12 +68,14 @@ static qboolean	winsockInitialized = qfalse;
 #	include <netdb.h>
 #	include <netinet/in.h>
 #	include <arpa/inet.h>
+#	ifndef __wii__
 #	include <net/if.h>
+#	endif
 #	include <sys/ioctl.h>
 #	include <sys/types.h>
 #	include <sys/time.h>
 #	include <unistd.h>
-#	if !defined(__sun) && !defined(__sgi)
+#	if !defined(__sun) && !defined(__sgi) && !defined(__wii__)
 #		include <ifaddrs.h>
 #	endif
 
@@ -118,10 +120,12 @@ static SOCKET	ip6_socket = INVALID_SOCKET;
 static SOCKET	socks_socket = INVALID_SOCKET;
 static SOCKET	multicast6_socket = INVALID_SOCKET;
 
+#ifndef __wii__
 // Keep track of currently joined multicast group.
 static struct ipv6_mreq curgroup;
 // And the currently bound address.
 static struct sockaddr_in6 boundto;
+#endif
 
 #ifndef IF_NAMESIZE
   #define IF_NAMESIZE 16
@@ -220,6 +224,7 @@ static void NetadrToSockadr( netadr_t *a, struct sockaddr *s ) {
 		((struct sockaddr_in *)s)->sin_addr.s_addr = *(int *)&a->ip;
 		((struct sockaddr_in *)s)->sin_port = a->port;
 	}
+	#ifndef __wii__
 	else if( a->type == NA_IP6 ) {
 		((struct sockaddr_in6 *)s)->sin6_family = AF_INET6;
 		((struct sockaddr_in6 *)s)->sin6_addr = * ((struct in6_addr *) &a->ip6);
@@ -232,6 +237,7 @@ static void NetadrToSockadr( netadr_t *a, struct sockaddr *s ) {
 		((struct sockaddr_in6 *)s)->sin6_addr = curgroup.ipv6mr_multiaddr;
 		((struct sockaddr_in6 *)s)->sin6_port = a->port;
 	}
+	#endif
 }
 
 
@@ -241,6 +247,7 @@ static void SockadrToNetadr( struct sockaddr *s, netadr_t *a ) {
 		*(int *)&a->ip = ((struct sockaddr_in *)s)->sin_addr.s_addr;
 		a->port = ((struct sockaddr_in *)s)->sin_port;
 	}
+	#ifndef __wii__
 	else if(s->sa_family == AF_INET6)
 	{
 		a->type = NA_IP6;
@@ -248,6 +255,7 @@ static void SockadrToNetadr( struct sockaddr *s, netadr_t *a ) {
 		a->port = ((struct sockaddr_in6 *)s)->sin6_port;
 		a->scope_id = ((struct sockaddr_in6 *)s)->sin6_scope_id;
 	}
+	#endif
 }
 
 
@@ -291,6 +299,7 @@ static qboolean Sys_StringToSockaddr(const char *s, struct sockaddr *sadr, int s
 		if(family == AF_UNSPEC)
 		{
 			// Decide here and now which protocol family to use
+			#ifndef __wii__
 			if(net_enabled->integer & NET_PRIOV6)
 			{
 				if(net_enabled->integer & NET_ENABLEV6)
@@ -307,6 +316,9 @@ static qboolean Sys_StringToSockaddr(const char *s, struct sockaddr *sadr, int s
 				if(!search && (net_enabled->integer & NET_ENABLEV6))
 					search = SearchAddrInfo(res, AF_INET6);
 			}
+			#else
+			search = SearchAddrInfo(res, AF_INET);
+			#endif
 		}
 		else
 			search = SearchAddrInfo(res, family);
@@ -341,10 +353,12 @@ Sys_SockaddrToString
 static void Sys_SockaddrToString(char *dest, int destlen, struct sockaddr *input)
 {
 	socklen_t inputlen;
-
+	
+	#ifndef __wii__
 	if (input->sa_family == AF_INET6)
 		inputlen = sizeof(struct sockaddr_in6);
 	else
+	#endif
 		inputlen = sizeof(struct sockaddr_in);
 
 	if(getnameinfo(input, inputlen, dest, destlen, NULL, 0, NI_NUMERICHOST) && destlen > 0)
@@ -365,8 +379,10 @@ qboolean Sys_StringToAdr( const char *s, netadr_t *a, netadrtype_t family ) {
 		case NA_IP:
 			fam = AF_INET;
 		break;
+		#ifndef __wii__
 		case NA_IP6:
 			fam = AF_INET6;
+		#endif
 		break;
 		default:
 			fam = AF_UNSPEC;
@@ -542,8 +558,10 @@ qboolean NET_GetPacket(netadr_t *net_from, msg_t *net_message, fd_set *fdr)
 		else
 		{
 
+			#ifndef __wii__
 			memset( ((struct sockaddr_in *)&from)->sin_zero, 0, 8 );
-		
+			#endif
+
 			if ( usingSocks && memcmp( &from, &socksRelayAddr, fromlen ) == 0 ) {
 				if ( ret < 10 || net_message->data[0] != 0 || net_message->data[1] != 0 || net_message->data[2] != 0 || net_message->data[3] != 1 ) {
 					return qfalse;
@@ -675,8 +693,10 @@ void Sys_SendPacket( int length, const void *data, netadr_t to ) {
 	else {
 		if(addr.ss_family == AF_INET)
 			ret = sendto( ip_socket, data, length, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_in) );
+		#ifndef __wii__
 		else if(addr.ss_family == AF_INET6)
 			ret = sendto( ip6_socket, data, length, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_in6) );
+		#endif
 	}
 	if( ret == SOCKET_ERROR ) {
 		int err = socketError;
@@ -730,6 +750,7 @@ qboolean Sys_IsLANAddress( netadr_t adr ) {
 		if(adr.ip[0] == 127)
 			return qtrue;
 	}
+	#ifndef __wii
 	else if(adr.type == NA_IP6)
 	{
 		if(adr.ip6[0] == 0xfe && (adr.ip6[1] & 0xc0) == 0x80)
@@ -737,6 +758,7 @@ qboolean Sys_IsLANAddress( netadr_t adr ) {
 		if((adr.ip6[0] & 0xfe) == 0xfc)
 			return qtrue;
 	}
+	#endif
 	
 	// Now compare against the networks this computer is member of.
 	for(index = 0; index < numIP; index++)
@@ -751,6 +773,7 @@ qboolean Sys_IsLANAddress( netadr_t adr ) {
 				
 				addrsize = sizeof(adr.ip);
 			}
+			#ifndef __wii__
 			else
 			{
 				// TODO? should we check the scope_id here?
@@ -761,6 +784,7 @@ qboolean Sys_IsLANAddress( netadr_t adr ) {
 				
 				addrsize = sizeof(adr.ip6);
 			}
+			#endif
 
 			differed = qfalse;
 			for(run = 0; run < addrsize; run++)
@@ -879,6 +903,7 @@ NET_IP6Socket
 ====================
 */
 SOCKET NET_IP6Socket( char *net_interface, int port, struct sockaddr_in6 *bindto, int *err ) {
+	#ifndef __wii__
 	SOCKET				newsocket;
 	struct sockaddr_in6	address;
 	ioctlarg_t			_true = 1;
@@ -954,8 +979,8 @@ SOCKET NET_IP6Socket( char *net_interface, int port, struct sockaddr_in6 *bindto
 		*bindto = address;
 
 	return newsocket;
+	#endif
 }
-
 /*
 ====================
 NET_SetMulticast
@@ -964,6 +989,7 @@ Set the current multicast group
 */
 void NET_SetMulticast6(void)
 {
+	#ifndef __wii__
 	struct sockaddr_in6 addr;
 
 	if(!*net_mcast6addr->string || !Sys_StringToSockaddr(net_mcast6addr->string, (struct sockaddr *) &addr, sizeof(addr), AF_INET6))
@@ -988,6 +1014,7 @@ void NET_SetMulticast6(void)
 	}
 	else
 		curgroup.ipv6mr_interface = 0;
+		#endif
 }
 
 /*
@@ -998,6 +1025,7 @@ Join an ipv6 multicast group
 */
 void NET_JoinMulticast6(void)
 {
+	#ifndef __wii__
 	int err;
 	
 	if(ip6_socket == INVALID_SOCKET || multicast6_socket != INVALID_SOCKET || (net_enabled->integer & NET_DISABLEMCAST))
@@ -1044,10 +1072,12 @@ void NET_JoinMulticast6(void)
 			return;
 		}
 	}
+	#endif
 }
 
 void NET_LeaveMulticast6()
 {
+	#ifndef __wii__
 	if(multicast6_socket != INVALID_SOCKET)
 	{
 		if(multicast6_socket != ip6_socket)
@@ -1057,6 +1087,7 @@ void NET_LeaveMulticast6()
 
 		multicast6_socket = INVALID_SOCKET;
 	}
+	#endif
 }
 
 /*
@@ -1220,7 +1251,9 @@ void NET_OpenSocks( int port ) {
 	((struct sockaddr_in *)&socksRelayAddr)->sin_family = AF_INET;
 	((struct sockaddr_in *)&socksRelayAddr)->sin_addr.s_addr = *(int *)&buf[4];
 	((struct sockaddr_in *)&socksRelayAddr)->sin_port = *(short *)&buf[8];
+	#ifndef __wii__
 	memset( ((struct sockaddr_in *)&socksRelayAddr)->sin_zero, 0, 8 );
+	#endif
 
 	usingSocks = qtrue;
 }
@@ -1249,11 +1282,13 @@ static void NET_AddLocalAddress(char *ifname, struct sockaddr *addr, struct sock
 			addrlen = sizeof(struct sockaddr_in);
 			localIP[numIP].type = NA_IP;
 		}
+		#ifndef __wii__
 		else if(family == AF_INET6)
 		{
 			addrlen = sizeof(struct sockaddr_in6);
 			localIP[numIP].type = NA_IP6;
 		}
+		#endif
 		else
 			return;
 		
@@ -1299,8 +1334,10 @@ static void NET_GetLocalAddress( void ) {
 
 	numIP = 0;
 
+	#ifndef __wii__
 	if(gethostname( hostname, 256 ) == SOCKET_ERROR)
 		return;
+	#endif
 
 	Com_Printf( "Hostname: %s\n", hostname );
 	
@@ -1312,26 +1349,34 @@ static void NET_GetLocalAddress( void ) {
 	if(!getaddrinfo(hostname, NULL, &hint, &res))
 	{
 		struct sockaddr_in mask4;
+		#ifndef __wii__
 		struct sockaddr_in6 mask6;
+		#endif
 		struct addrinfo *search;
 	
 		/* On operating systems where it's more difficult to find out the configured interfaces, we'll just assume a
 		 * netmask with all bits set. */
 	
 		memset(&mask4, 0, sizeof(mask4));
+		#ifndef __wii__
 		memset(&mask6, 0, sizeof(mask6));
+		#endif
 		mask4.sin_family = AF_INET;
 		memset(&mask4.sin_addr.s_addr, 0xFF, sizeof(mask4.sin_addr.s_addr));
+		#ifndef __wii__
 		mask6.sin6_family = AF_INET6;
 		memset(&mask6.sin6_addr, 0xFF, sizeof(mask6.sin6_addr));
+		#endif
 
 		// add all IPs from returned list.
 		for(search = res; search; search = search->ai_next)
 		{
 			if(search->ai_family == AF_INET)
 				NET_AddLocalAddress("", search->ai_addr, (struct sockaddr *) &mask4);
+			#ifndef __wii__
 			else if(search->ai_family == AF_INET6)
 				NET_AddLocalAddress("", search->ai_addr, (struct sockaddr *) &mask6);
+			#endif
 		}
 	
 		Sys_ShowIP();
@@ -1361,7 +1406,7 @@ void NET_OpenIP( void ) {
 	// automatically scan for a valid port, so multiple
 	// dedicated servers can be started without requiring
 	// a different net_port for each one
-
+	#ifndef __wii__
 	if(net_enabled->integer & NET_ENABLEV6)
 	{
 		for( i = 0 ; i < 10 ; i++ )
@@ -1381,6 +1426,7 @@ void NET_OpenIP( void ) {
 		if(ip6_socket == INVALID_SOCKET)
 			Com_Printf( "WARNING: Couldn't bind to a v6 ip address.\n");
 	}
+	#endif
 
 	if(net_enabled->integer & NET_ENABLEV4)
 	{
@@ -1559,7 +1605,9 @@ void NET_Config( qboolean enableNetworking ) {
 		if (net_enabled->integer)
 		{
 			NET_OpenIP();
+			#ifndef __wii__
 			NET_SetMulticast6();
+			#endif
 		}
 	}
 }

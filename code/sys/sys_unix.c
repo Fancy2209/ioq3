@@ -31,7 +31,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdio.h>
 #include <dirent.h>
 #include <unistd.h>
+#ifndef __wii__
 #include <sys/mman.h>
+#endif
 #include <sys/time.h>
 #include <pwd.h>
 #include <libgen.h>
@@ -233,11 +235,14 @@ Sys_GetCurrentUser
 char *Sys_GetCurrentUser( void )
 {
 	struct passwd *p;
-
+	#ifndef __wii__
 	if ( (p = getpwuid( getuid() )) == NULL ) {
 		return "player";
 	}
 	return p->pw_name;
+	#else
+	return "player";
+	#endif
 }
 
 #define MEM_THRESHOLD 96*1024*1024
@@ -271,7 +276,22 @@ Sys_Dirname
 */
 const char *Sys_Dirname( char *path )
 {
+	#ifndef __wii__
 	return dirname( path );
+	#else
+		static char dir[ MAX_OSPATH ] = { 0 };
+	int length;
+
+	Q_strncpyz( dir, path, sizeof( dir ) );
+	length = strlen( dir ) - 1;
+
+	while( length > 0 && dir[ length ] != '\\' )
+		length--;
+
+	dir[ length ] = '\0';
+
+	return dir;
+	#endif
 }
 
 /*
@@ -319,9 +339,10 @@ FILE *Sys_Mkfifo( const char *ospath )
 	// if file already exists AND is a pipefile, remove it
 	if( !stat( ospath, &buf ) && S_ISFIFO( buf.st_mode ) )
 		FS_Remove( ospath );
-
+	#ifndef __wii__
 	result = mkfifo( ospath, 0600 );
 	if( result != 0 )
+	#endif
 		return NULL;
 
 	fifo = fopen( ospath, "w+" );
@@ -712,8 +733,10 @@ static int Sys_Exec( void )
 	}
 	else
 	{
+		#ifndef __wii__
 		// Child
 		execvp( execArgv[ 0 ], execArgv );
+		#endif
 
 		// Failed to execute
 		exit( -1 );
